@@ -1,0 +1,4 @@
+# 运行和测试时产生的临时文件，不用上传
+server-test.log
+upload-log.txt
+*.tmp

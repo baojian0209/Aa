@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f7a5a">
 <title>百日筑基 · 100 天身体计划</title>
+<!-- 装到手机桌面用的设置 -->
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="description" content="记录每天早睡、喝水、训练和饮食，坚持 100 天">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="百日筑基">
 <style>
   :root{
     --green:#1f7a5a;
@@ -352,6 +360,15 @@
 
   <!-- ============ 我的 ============ -->
   <section class="page" id="page-me">
+    <div class="card">
+      <div class="card-head"><div class="card-title"><span class="ico">📲</span>装到手机桌面</div></div>
+      <div class="card-sub" id="installTip">正在检查……</div>
+      <div id="installBtnBox" style="display:none">
+        <div style="height:11px"></div>
+        <button class="btn-main" onclick="doInstall()">一键装到桌面</button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-head"><div class="card-title"><span class="ico">⚙️</span>计划设置</div></div>
       <label class="field">第 1 天是哪天</label>
@@ -944,6 +961,8 @@ function renderMe(){
   }
   d += '<div class="tips" style="margin-top:11px">没时间去健身房，全部动作都可以用哑铃、弹力带或自重在家完成；重量选择“最后两次有点吃力但动作不变形”。</div>';
   document.getElementById('actList').innerHTML = d;
+
+  renderInstallTip();
 }
 
 /* ================= 每天练什么：选择面板 ================= */
@@ -1065,6 +1084,70 @@ function resetAll(){
 }
 
 /* ================= 启动 ================= */
+/* ================= 装到手机桌面 ================= */
+var installEvent = null;
+
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  installEvent = e;
+  renderInstallTip();
+});
+window.addEventListener('appinstalled', function(){
+  installEvent = null;
+  toast('装好了，去手机桌面看看');
+  renderInstallTip();
+});
+
+function isStandalone(){
+  var m = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  return !!m || window.navigator.standalone === true;
+}
+function isIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+function renderInstallTip(){
+  var tip = document.getElementById('installTip');
+  var box = document.getElementById('installBtnBox');
+  if(!tip || !box) return;
+  if(isStandalone()){
+    tip.innerHTML = '已经装好了。以后直接点桌面上的"百日筑基"图标打开，全屏显示、断网也能用。';
+    box.style.display = 'none';
+    return;
+  }
+  if(location.protocol.indexOf('http') !== 0){
+    tip.innerHTML = '现在是用本地文件打开的，装不了桌面图标。等用手机浏览器打开网上的网址后，这里会出现"一键装到桌面"。';
+    box.style.display = 'none';
+    return;
+  }
+  if(installEvent){
+    tip.innerHTML = '点下面的按钮，手机桌面就会多一个"百日筑基"图标。装好之后全屏打开，断网也能用。';
+    box.style.display = 'block';
+    return;
+  }
+  if(isIOS()){
+    tip.innerHTML = '苹果手机这样装：用 <b>Safari</b> 打开本页 → 点底部中间的"分享"按钮 → 选"添加到主屏幕" → 点"添加"。';
+  }else{
+    tip.innerHTML = '安卓手机这样装：点浏览器右上角的三个点 → 选"安装应用"或者"添加到主屏幕"。';
+  }
+  box.style.display = 'none';
+}
+function doInstall(){
+  if(!installEvent){ toast('请按上面的说明手动添加'); return; }
+  installEvent.prompt();
+  installEvent.userChoice.then(function(res){
+    installEvent = null;
+    if(res && res.outcome === 'accepted') toast('装好了，去桌面看看');
+    renderInstallTip();
+  });
+}
+
+/* 注册离线缓存（网址打开时生效；用本地文件打开会自动跳过，不影响使用） */
+if('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
+}
+
 document.getElementById('inCup').value = state.cupMl;
 render();
 </script>
