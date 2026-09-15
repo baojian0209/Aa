@@ -57,7 +57,7 @@
 
   /* 内容区自己滚动，底部工具栏永远在下面（不靠 fixed，手机上最稳） */
   main{
-    flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    flex:1 1 auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
     padding-top:14px;padding-bottom:26px;
   }
   .page{display:none}
@@ -112,10 +112,11 @@
   .plan{font-size:12px;color:var(--orange);font-weight:700}
 
   /* 喝水 */
-  .cups{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+  .cups{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
   .cup{
     height:52px;border-radius:12px;background:#f1f6f8;border:1.5px solid #e2ebef;
     display:flex;align-items:center;justify-content:center;font-size:22px;color:#bcd3dd;
+    padding:0;min-width:0;
     transition:all .15s;
   }
   .cup.on{background:#e4f1fb;border-color:#9ecdf0;color:var(--blue)}
@@ -132,11 +133,12 @@
   .pick.warn.on{background:#fdf0e6;border-color:#f0c19b;color:#c1601f}
 
   /* 日历 */
-  .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}
+  .grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:5px}
   .cell{
-    aspect-ratio:1;border-radius:8px;background:#eef1f0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;font-size:10px;color:#93a09b;font-weight:600;
-    border:1.5px solid transparent;
+    aspect-ratio:1;min-width:0;padding:0;border-radius:8px;background:#eef1f0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:clamp(8px,2.4vw,11px);line-height:1.1;color:#93a09b;font-weight:600;
+    border:1.5px solid transparent;font-variant-numeric:tabular-nums;
   }
   .cell.s1{background:#d8ece1;color:#5c8f76}
   .cell.s2{background:#93c9ac;color:#fff}
@@ -145,11 +147,11 @@
   .cell.today.s3{color:#fff}
   .cell.rest{background:repeating-linear-gradient(45deg,#f2f4f3,#f2f4f3 4px,#e9edeb 4px,#e9edeb 8px)}
   .cell.off{opacity:.35}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:12px}
+  .legend{display:flex;gap:10px 14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2);margin-top:10px}
   .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 
   /* 统计 */
-  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .stat{background:var(--card);border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(20,40,30,.05)}
   .stat .k{font-size:12px;color:var(--ink-2)}
   .stat .v{font-size:24px;font-weight:800;margin-top:3px;color:var(--green)}
@@ -253,6 +255,15 @@
     padding:11px 13px;font-size:13px;margin-bottom:12px;display:flex;justify-content:space-between;gap:10px;align-items:center;
   }
   .banner button{font-size:13px;font-weight:700;color:#a8631d;text-decoration:underline;white-space:nowrap}
+
+  /* 窄屏手机：卡片和格子再挤一点，保证日历 10 列能完整显示 */
+  @media (max-width:390px){
+    .wrap{padding:0 10px}
+    .card{padding:13px 12px 12px}
+    .grid{gap:4px}
+    .cell{border-radius:6px}
+    .legend{font-size:11px;gap:8px 12px}
+  }
 </style>
 </head>
 <body>
