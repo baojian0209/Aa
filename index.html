@@ -257,7 +257,7 @@
   .banner button{font-size:13px;font-weight:700;color:#a8631d;text-decoration:underline;white-space:nowrap}
 
   /* 窄屏手机：卡片和格子再挤一点，保证日历 10 列能完整显示 */
-  @media (max-width:390px){
+  @media (max-width:480px){
     .wrap{padding:0 10px}
     .card{padding:13px 12px 12px}
     .grid{gap:4px}
@@ -457,6 +457,16 @@
         <button class="btn-ghost" onclick="restoreFromText()">用这段内容恢复</button>
       </details>
     </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-title"><span class="ico">🔄</span>版本</div>
+        <span class="card-sub" id="verTxt"></span>
+      </div>
+      <div class="card-sub" style="margin-bottom:11px">
+        如果界面看起来还是老样子、或者哪里明显不对，点下面的按钮强制拉一次最新版。
+      </div>
+      <button class="btn-ghost" onclick="forceUpdate()">检查更新（拉取最新版）</button>
+    </div>
   </section>
 
 </main>
@@ -481,6 +491,7 @@
 <script>
 /* ================= 基础数据 ================= */
 var KEY = 'baiRiZhuJi_v1';
+var APP_VERSION = '2026-09-15.2';   /* 每次改完都往后加数字，方便在手机上确认版本 */
 var TOTAL_DAYS = 100;
 var WATER_TARGET_ML = 3000;
 var CARDIO_TARGET = 20; /* 有氧目标分钟 */
@@ -1078,6 +1089,7 @@ function renderMe(){
   document.getElementById('inCup').value = state.cupMl;
   document.getElementById('cupMlTxt').textContent = state.cupMl;
   document.getElementById('cupNumTxt').textContent = cupNum();
+  document.getElementById('verTxt').textContent = APP_VERSION;
 
   /* 每周七天的安排，点一下就能改 */
   var h = '';
@@ -1538,6 +1550,31 @@ function doInstall(){
 if('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
+}
+
+/* 强制拉最新版：清掉离线缓存和旧的缓存服务，再重新打开页面 */
+function forceUpdate(){
+  toast('正在拉取最新版……');
+  var jobs = [];
+  try{
+    if('serviceWorker' in navigator){
+      jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){
+        return Promise.all(rs.map(function(r){ return r.unregister(); }));
+      }));
+    }
+  }catch(e){}
+  try{
+    if(window.caches && caches.keys){
+      jobs.push(caches.keys().then(function(keys){
+        return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+      }));
+    }
+  }catch(e){}
+  Promise.all(jobs).then(function(){
+    location.replace(location.pathname + '?v=' + Date.now());
+  }).catch(function(){
+    location.replace(location.pathname + '?v=' + Date.now());
   });
 }
 
