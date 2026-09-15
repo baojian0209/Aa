@@ -1,5 +1,5 @@
 /* 离线缓存：第一次打开后把页面存到手机里，以后断网也能打开 */
-var CACHE_NAME = 'baizhujiji-v1';
+var CACHE_NAME = 'baizhujiji-v2';
 var CACHE_FILES = [
   './',
   './index.html',
@@ -28,17 +28,35 @@ self.addEventListener('activate', function(event){
   );
 });
 
-/* 取文件：先看缓存，没有再去网上拿；彻底断网时回到首页 */
+/* 取文件：
+   页面本体 → 先联网拿最新的（这样改了功能你打开就是新版），断网时用缓存兜底；
+   图标这类不常变的文件 → 先用缓存，快一些。 */
 self.addEventListener('fetch', function(event){
-  if(event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then(function(hit){
-      if(hit) return hit;
-      return fetch(event.request).then(function(res){
+  var req = event.request;
+  if(req.method !== 'GET') return;
+
+  var isPage = (req.mode === 'navigate') ||
+               ((req.headers.get('accept') || '').indexOf('text/html') >= 0);
+
+  if(isPage){
+    event.respondWith(
+      fetch(req).then(function(res){
         var copy = res.clone();
-        caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, copy); });
+        caches.open(CACHE_NAME).then(function(cache){ cache.put('./index.html', copy); });
         return res;
-      }).catch(function(){ return caches.match('./index.html'); });
+      }).catch(function(){ return caches.match('./index.html'); })
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(req).then(function(hit){
+      if(hit) return hit;
+      return fetch(req).then(function(res){
+        var copy = res.clone();
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(req, copy); });
+        return res;
+      });
     })
   );
 });

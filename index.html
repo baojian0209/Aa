@@ -204,6 +204,25 @@
   .opt.on{background:var(--green-soft);border-color:#b6ddc9;color:var(--green)}
   .opt .o-sub{display:block;font-weight:400;margin-top:2px}
 
+  /* 动作编辑 */
+  .edit-item{display:flex;align-items:center;gap:6px;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .edit-item:last-child{border-bottom:none}
+  .ei-main{flex:1;text-align:left;display:flex;flex-direction:column;gap:2px}
+  .ei-name{font-size:15px;font-weight:700}
+  .ei-btn{
+    width:36px;height:36px;flex:0 0 36px;border-radius:10px;background:#f2f4f3;
+    color:var(--ink-2);font-size:15px;font-weight:700;line-height:1;
+  }
+  .ei-btn.del{background:#fdecea;color:#c0392b}
+  .ei-btn:active{transform:scale(.94)}
+  .lib-group{font-size:12.5px;font-weight:700;color:var(--green);margin:14px 0 7px}
+  .stepper{display:flex;align-items:center;gap:12px;margin-top:2px}
+  .stepper .st-btn{
+    width:46px;height:46px;border-radius:13px;background:#f2f4f3;font-size:22px;
+    font-weight:700;color:var(--ink);line-height:1;
+  }
+  .stepper .st-val{flex:1;text-align:center;font-size:22px;font-weight:800;color:var(--green)}
+
   /* 底部导航 */
   nav{
     position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.96);
@@ -440,7 +459,7 @@
   <div class="sheet" id="sheet" onclick="event.stopPropagation()">
     <div id="sheetBody"></div>
     <div style="height:4px"></div>
-    <button class="btn-ghost" onclick="closeSheet()">取消</button>
+    <button class="btn-ghost" id="sheetCloseBtn" onclick="closeSheet()">取消</button>
   </div>
 </div>
 
@@ -451,47 +470,104 @@ var TOTAL_DAYS = 100;
 var WATER_TARGET_ML = 3000;
 var CARDIO_TARGET = 20; /* 有氧目标分钟 */
 
-/* 训练模板库：每天从里面挑一个，随时可改 */
-var TEMPLATES = {
+/* 六套默认安排：每天从里面挑一个，具体动作也可以在"我的"页面里改 */
+var DEFAULT_PLAN = {
   rest:{ key:'rest', name:'休息', sub:'不安排力量，散步拉伸随意', cardio:'optional', items:[] },
   legs:{ key:'legs', name:'下肢 + 核心', sub:'腿、臀、核心', cardio:'task', items:[
-    ['高脚杯深蹲','4 组 × 10 次'],
-    ['罗马尼亚硬拉','3 组 × 10 次'],
-    ['箭步蹲','3 组 × 10 次/腿'],
-    ['臀桥','3 组 × 15 次'],
-    ['平板支撑','3 组 × 45 秒']
+    {n:'高脚杯深蹲',s:4,r:10,u:'次'},
+    {n:'罗马尼亚硬拉',s:3,r:10,u:'次'},
+    {n:'箭步蹲',s:3,r:10,u:'次'},
+    {n:'臀桥',s:3,r:15,u:'次'},
+    {n:'平板支撑',s:3,r:45,u:'秒'}
   ]},
   push:{ key:'push', name:'上肢推（胸肩）', sub:'胸、肩、三头', cardio:'task', items:[
-    ['俯卧撑','4 组 × 8-12 次'],
-    ['哑铃卧推','3 组 × 10 次'],
-    ['哑铃肩推','3 组 × 10 次'],
-    ['侧平举','3 组 × 15 次'],
-    ['臂屈伸（三头）','3 组 × 12 次']
+    {n:'俯卧撑',s:4,r:10,u:'次'},
+    {n:'哑铃卧推',s:3,r:10,u:'次'},
+    {n:'哑铃肩推',s:3,r:10,u:'次'},
+    {n:'侧平举',s:3,r:15,u:'次'},
+    {n:'三头下压',s:3,r:12,u:'次'}
   ]},
   pull:{ key:'pull', name:'上肢拉（背）', sub:'背、二头', cardio:'task', items:[
-    ['引体向上 / 高位下拉','4 组 × 6-10 次'],
-    ['单臂哑铃划船','3 组 × 10 次/侧'],
-    ['坐姿划船','3 组 × 12 次'],
-    ['面拉','3 组 × 15 次'],
-    ['哑铃弯举（二头）','3 组 × 12 次']
+    {n:'引体向上',s:4,r:6,u:'次'},
+    {n:'单臂哑铃划船',s:3,r:10,u:'次'},
+    {n:'坐姿划船',s:3,r:12,u:'次'},
+    {n:'面拉',s:3,r:15,u:'次'},
+    {n:'哑铃弯举',s:3,r:12,u:'次'}
   ]},
   full:{ key:'full', name:'全身 + 核心', sub:'一次练全身', cardio:'task', items:[
-    ['硬拉 / 壶铃摆动','4 组 × 10 次'],
-    ['保加利亚分腿蹲','3 组 × 10 次/腿'],
-    ['上斜俯卧撑','3 组 × 12 次'],
-    ['农夫行走','3 组 × 30 米'],
-    ['卷腹 / 举腿','3 组 × 15 次'],
-    ['侧平板支撑','3 组 × 30 秒/侧']
+    {n:'硬拉',s:4,r:8,u:'次'},
+    {n:'保加利亚分腿蹲',s:3,r:10,u:'次'},
+    {n:'上斜俯卧撑',s:3,r:12,u:'次'},
+    {n:'农夫行走',s:3,r:30,u:'米'},
+    {n:'仰卧举腿',s:3,r:15,u:'次'},
+    {n:'侧平板支撑',s:3,r:30,u:'秒'}
   ]},
   core:{ key:'core', name:'核心 + 有氧', sub:'肚子、腰、稳定性', cardio:'task', items:[
-    ['卷腹','3 组 × 20 次'],
-    ['仰卧举腿','3 组 × 15 次'],
-    ['平板支撑','3 组 × 45 秒'],
-    ['侧平板支撑','3 组 × 30 秒/侧'],
-    ['俄罗斯转体','3 组 × 20 次']
+    {n:'卷腹',s:3,r:20,u:'次'},
+    {n:'仰卧举腿',s:3,r:15,u:'次'},
+    {n:'平板支撑',s:3,r:45,u:'秒'},
+    {n:'侧平板支撑',s:3,r:30,u:'秒'},
+    {n:'俄罗斯转体',s:3,r:20,u:'次'}
   ]},
   run:{ key:'run', name:'只有有氧', sub:'慢跑 / 快走 / 单车', cardio:'main', items:[] }
 };
+
+/* 动作库：改训练安排时从这里挑动作。每条是 [名称, 组数, 次数, 单位] */
+var ACTION_LIB = [
+  { group:'腿臀', items:[
+    ['高脚杯深蹲',4,10,'次'], ['深蹲',4,10,'次'], ['罗马尼亚硬拉',3,10,'次'],
+    ['硬拉',4,8,'次'], ['箭步蹲',3,10,'次'], ['保加利亚分腿蹲',3,10,'次'],
+    ['臀桥',3,15,'次'], ['壶铃摆动',4,15,'次'], ['腿举',4,12,'次'],
+    ['坐姿腿屈伸',3,15,'次'], ['腿弯举',3,12,'次'], ['站姿提踵',3,20,'次']
+  ]},
+  { group:'胸', items:[
+    ['俯卧撑',4,10,'次'], ['上斜俯卧撑',3,12,'次'], ['哑铃卧推',3,10,'次'],
+    ['杠铃卧推',4,8,'次'], ['哑铃飞鸟',3,12,'次'], ['双杠臂屈伸',3,10,'次']
+  ]},
+  { group:'背', items:[
+    ['引体向上',4,6,'次'], ['高位下拉',4,10,'次'], ['单臂哑铃划船',3,10,'次'],
+    ['杠铃划船',4,8,'次'], ['坐姿划船',3,12,'次'], ['面拉',3,15,'次'], ['直臂下压',3,12,'次']
+  ]},
+  { group:'肩', items:[
+    ['哑铃肩推',3,10,'次'], ['侧平举',3,15,'次'], ['前平举',3,12,'次'],
+    ['俯身飞鸟',3,15,'次'], ['耸肩',3,15,'次']
+  ]},
+  { group:'手臂', items:[
+    ['哑铃弯举',3,12,'次'], ['锤式弯举',3,12,'次'], ['三头下压',3,12,'次'], ['窄距俯卧撑',3,10,'次']
+  ]},
+  { group:'核心', items:[
+    ['卷腹',3,20,'次'], ['仰卧举腿',3,15,'次'], ['平板支撑',3,45,'秒'],
+    ['侧平板支撑',3,30,'秒'], ['俄罗斯转体',3,20,'次'], ['登山跑',3,30,'秒'], ['死虫式',3,15,'次']
+  ]},
+  { group:'其他', items:[
+    ['农夫行走',3,30,'米'], ['开合跳',3,30,'次'], ['跳绳',3,100,'次'], ['拉伸放松',1,5,'分钟']
+  ]}
+];
+var PLAN_KEYS = ['legs','push','pull','full','core','run'];
+/* 动作显示成"4 组 × 10 次"这样的文字 */
+function fmtItem(it){
+  return it.s + ' 组 × ' + it.r + ' ' + (it.u || '次');
+}
+/* 拼 HTML 用的小工具：esc 负责转义，q 负责拼出安全的字符串参数 */
+function esc(s){
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function q(s){
+  return esc("'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'");
+}
+/* 复制一份安排（改默认值时不会互相影响） */
+function clonePlan(src){
+  var out = {};
+  for(var k in src){
+    var t = src[k], items = [];
+    for(var i = 0; i < (t.items || []).length; i++){
+      var it = t.items[i];
+      items.push({ n:it.n, s:it.s, r:it.r, u:it.u });
+    }
+    out[k] = { key:t.key, name:t.name, sub:t.sub, cardio:t.cardio, items:items };
+  }
+  return out;
+}
 /* 每周安排：0=周日，1=周一 …… 6=周六。默认周二三五日练力量 */
 var WEEK_DEFAULT = { 0:'full', 1:'rest', 2:'legs', 3:'push', 4:'rest', 5:'pull', 6:'rest' };
 var WEEK_ORDER = [1,2,3,4,5,6,0];
@@ -507,7 +583,7 @@ var tab = 'today';
 
 /* 一份全新的空数据 */
 function freshState(){
-  return { start: todayStr(), cupMl: 375, week: cloneWeek(WEEK_DEFAULT), days: {} };
+  return { start: todayStr(), cupMl: 375, week: cloneWeek(WEEK_DEFAULT), plan: clonePlan(DEFAULT_PLAN), days: {} };
 }
 function load(){
   var fresh = freshState();
@@ -519,9 +595,55 @@ function load(){
     d.start = d.start || fresh.start;
     d.cupMl = d.cupMl || 375;
     d.week = fixWeek(d.week);
-    d.days = d.days || {};
+    d.plan = fixPlan(d.plan);
+    d.days = fixDays(d.days || {}, d.plan);
     return d;
   }catch(e){ return fresh; }
+}
+/* 老版本的打卡记录里存的是动作序号，这里按名字重存一遍 */
+function fixDays(days, plan){
+  for(var d in days){
+    var r = days[d];
+    if(!r || !r.ex || !r.ex.length) continue;
+    if(typeof r.ex[0] !== 'number') continue;
+    var p = plan[r.plan], out = [];
+    if(p && p.items){
+      for(var i = 0; i < r.ex.length; i++){
+        var it = p.items[r.ex[i]];
+        if(it) out.push(it.n);
+      }
+    }
+    r.ex = out;
+  }
+  return days;
+}
+/* 老数据里没有可编辑的安排，这里补上默认的，并检查格式 */
+function fixPlan(p){
+  var base = clonePlan(DEFAULT_PLAN);
+  if(!p || typeof p !== 'object') return base;
+  var out = {};
+  for(var k in base){
+    var src = p[k];
+    if(!src || typeof src !== 'object'){ out[k] = base[k]; continue; }
+    var items = [];
+    if(Object.prototype.toString.call(src.items) === '[object Array]'){
+      for(var i = 0; i < src.items.length; i++){
+        var it = src.items[i];
+        if(!it) continue;
+        if(typeof it === 'string'){ items.push({ n:it, s:3, r:12, u:'次' }); continue; }
+        if(!it.n) continue;
+        items.push({ n:String(it.n), s:+(it.s || 3), r:+(it.r || 12), u:it.u || '次' });
+      }
+    }
+    out[k] = {
+      key: k,
+      name: src.name || base[k].name,
+      sub: src.sub || base[k].sub,
+      cardio: (src.cardio === 'task' || src.cardio === 'main' || src.cardio === 'optional') ? src.cardio : base[k].cardio,
+      items: items
+    };
+  }
+  return out;
 }
 function cloneWeek(w){
   var o = {};
@@ -532,7 +654,7 @@ function cloneWeek(w){
 function fixWeek(w){
   var o = cloneWeek(WEEK_DEFAULT);
   for(var i = 0; i < 7; i++){
-    if(w && typeof w[i] === 'string' && TEMPLATES[w[i]]) o[i] = w[i];
+    if(w && typeof w[i] === 'string' && (w[i] === 'rest' || DEFAULT_PLAN[w[i]])) o[i] = w[i];
   }
   return o;
 }
@@ -574,14 +696,14 @@ function cupNum(){ return Math.ceil(WATER_TARGET_ML / state.cupMl); }
 /* 按现在的每周安排，这天该练什么 */
 function planIdOf(date){
   var id = state.week[parse(date).getDay()];
-  return TEMPLATES[id] ? id : 'rest';
+  return (id === 'rest' || state.plan[id]) ? id : 'rest';
 }
 /* 某天实际用的安排：过去已经打过卡的日期按当时的安排算，
    今天和以后都按现在选的安排算（所以改完立刻生效） */
 function planOf(date){
   var r = state.days[date];
-  var id = (date < todayStr() && r && r.plan && TEMPLATES[r.plan]) ? r.plan : planIdOf(date);
-  return TEMPLATES[id];
+  var id = (date < todayStr() && r && r.plan && (r.plan === 'rest' || state.plan[r.plan])) ? r.plan : planIdOf(date);
+  return state.plan[id] || state.plan.rest;
 }
 /* 当天需要完成的项：睡觉 + 喝水 +（有动作：训练）+（有氧必做：有氧） */
 function taskList(date){
@@ -599,9 +721,17 @@ function dayScore(date){
   if(r.sleep) done++;
   if((r.water || 0) >= cupNum()) done++;
   var p = planOf(date);
-  if(p.items.length && (r.ex || []).length >= p.items.length) done++;
+  if(p.items.length && doneItems(r, p) >= p.items.length) done++;
   if(p.cardio !== 'optional' && r.cardio) done++;
   return { done:done, total:tasks.length, rate: Math.round(done / tasks.length * 100) };
+}
+/* 这天完成了这套安排里的几个动作（按动作名字对） */
+function doneItems(r, p){
+  var n = 0, ex = (r && r.ex) || [];
+  for(var i = 0; i < p.items.length; i++){
+    if(ex.indexOf(p.items[i].n) >= 0) n++;
+  }
+  return n;
 }
 
 /* ================= 页面切换 ================= */
@@ -652,12 +782,12 @@ function setWater(n){
   if(r.water >= cupNum()) toast('今日 3 升完成，很棒');
 }
 function addWater(d){ setWater(((rec(viewDate, false) || {}).water || 0) + d); }
-function toggleEx(i){
+function toggleEx(name){
   if(!guard()) return;
   var r = rec(viewDate, true);
   r.ex = r.ex || [];
-  var k = r.ex.indexOf(i);
-  if(k >= 0) r.ex.splice(k, 1); else r.ex.push(i);
+  var k = r.ex.indexOf(name);
+  if(k >= 0) r.ex.splice(k, 1); else r.ex.push(name);
   save(); render();
 }
 function setCardio(m){
@@ -695,6 +825,7 @@ function backToday(){ viewDate = todayStr(); render(); }
 /* ================= 渲染：今日 ================= */
 function render(){
   if(!state.week) state.week = fixWeek(state.week); /* 兜底：老数据或异常数据自动补齐 */
+  if(!state.plan) state.plan = fixPlan(state.plan);
   renderHead();
   if(tab === 'today') renderToday();
   if(tab === 'cal') renderCal();
@@ -776,15 +907,18 @@ function renderToday(){
       '<span class="tag">' + WEEK_CN[parse(viewDate).getDay()] + '的安排</span></div>' +
       '<div class="card-sub">今天没有力量动作，把有氧做扎实就行。做完在下面记一下时长。</div>' +
       '<div style="height:10px"></div>' +
-      '<button class="btn-ghost" onclick="openDay(' + parse(viewDate).getDay() + ')">改成练力量</button>';
+      '<div class="row">' +
+        '<button class="btn-ghost" onclick="openPlanEdit(' + q(planIdOf(viewDate)) + ')">改动作</button>' +
+        '<button class="btn-ghost" onclick="openDay(' + parse(viewDate).getDay() + ')">换一套</button>' +
+      '</div>';
   }else{
     var list = '';
     for(var k = 0; k < p.items.length; k++){
-      var on = (r.ex || []).indexOf(k) >= 0;
-      list += '<div class="check' + (on ? ' on' : '') + '" onclick="toggleEx(' + k + ')">' +
+      var on = (r.ex || []).indexOf(p.items[k].n) >= 0;
+      list += '<div class="check' + (on ? ' on' : '') + '" onclick="toggleEx(' + q(p.items[k].n) + ')">' +
                 '<div class="box">✓</div>' +
-                '<div class="txt"><div class="name">' + p.items[k][0] + '</div>' +
-                '<div class="desc">' + p.items[k][1] + '</div></div>' +
+                '<div class="txt"><div class="name">' + esc(p.items[k].n) + '</div>' +
+                '<div class="desc">' + fmtItem(p.items[k]) + '</div></div>' +
               '</div>';
     }
     tc.innerHTML =
@@ -792,8 +926,11 @@ function renderToday(){
       '<span class="tag">' + WEEK_CN[parse(viewDate).getDay()] + '的安排</span></div>' +
       '<div class="card-sub" style="margin:-4px 0 6px">先热身 5 分钟，练完记得拉伸。</div>' +
       list +
-      '<div style="height:6px"></div>' +
-      '<button class="btn-ghost" onclick="openDay(' + parse(viewDate).getDay() + ')">换一套动作</button>';
+      '<div style="height:10px"></div>' +
+      '<div class="row">' +
+        '<button class="btn-ghost" onclick="openPlanEdit(' + q(planIdOf(viewDate)) + ')">改动作</button>' +
+        '<button class="btn-ghost" onclick="openDay(' + parse(viewDate).getDay() + ')">换一套</button>' +
+      '</div>';
   }
 
   /* 有氧 */
@@ -930,7 +1067,7 @@ function renderMe(){
   var h = '';
   var trainDays = 0;
   for(var i = 0; i < WEEK_ORDER.length; i++){
-    var w = WEEK_ORDER[i], p = TEMPLATES[state.week[w]];
+    var w = WEEK_ORDER[i], p = state.plan[state.week[w]] || state.plan.rest;
     var isRest = p.key === 'rest';
     if(!isRest) trainDays++;
     h += '<button class="week-row" onclick="openDay(' + w + ')">' +
@@ -944,54 +1081,283 @@ function renderMe(){
   h += '<div class="tips" style="margin-top:12px">每周安排 <b>' + trainDays + ' 天</b> 训练。点任意一行都能改，改完从今天开始生效，<b>以前打过卡的日期不会变</b>。</div>';
   document.getElementById('planList').innerHTML = h;
 
-  /* 每套动作的详细内容 */
-  var keys = ['legs','push','pull','full','core','run'];
+  /* 每套动作（点进去可以自己改） */
   var d = '';
-  for(var j = 0; j < keys.length; j++){
-    var t = TEMPLATES[keys[j]];
-    d += '<details><summary><span>' + t.name + '</span>' +
-         '<span class="dnum">' + (t.items.length ? t.items.length + ' 个动作' : '无力量动作') + '</span></summary>';
-    for(var k = 0; k < t.items.length; k++){
-      d += '<div class="check" style="border-bottom:none;padding:7px 0">' +
-           '<div class="txt"><div class="name">' + t.items[k][0] + '</div>' +
-           '<div class="desc">' + t.items[k][1] + '</div></div></div>';
-    }
-    d += '<div class="tips">' + (t.cardio === 'main' ? '这套以有氧为主。' :
-         (t.cardio === 'task' ? '练完接着做 20-30 分钟有氧。' : '有氧选做，不练也行。')) + '</div></details>';
+  for(var j = 0; j < PLAN_KEYS.length; j++){
+    var t = state.plan[PLAN_KEYS[j]];
+    d += '<button class="week-row" onclick="openPlanEdit(' + q(PLAN_KEYS[j]) + ')">' +
+           '<span class="wt">' + t.name +
+             '<span class="o-sub">　' + (t.items.length ? t.items.length + ' 个动作' : '只有有氧') +
+             (t.cardio === 'task' ? ' + 有氧' : '') + '</span></span>' +
+           '<span class="go">编辑 ›</span>' +
+         '</button>';
   }
-  d += '<div class="tips" style="margin-top:11px">没时间去健身房，全部动作都可以用哑铃、弹力带或自重在家完成；重量选择“最后两次有点吃力但动作不变形”。</div>';
+  d += '<div class="tips" style="margin-top:12px">点进去可以自己增删动作、改组数次数。没时间去健身房，全部动作都可以用哑铃、弹力带或自重在家完成；重量选择“最后两次有点吃力但动作不变形”。</div>';
   document.getElementById('actList').innerHTML = d;
 
   renderInstallTip();
 }
 
-/* ================= 每天练什么：选择面板 ================= */
-function openDay(w){
-  var cur = state.week[w];
-  var h = '<h3>' + WEEK_CN[w] + '安排什么</h3><div class="sub">选一个，立刻生效</div>';
-  var keys = ['rest','legs','push','pull','full','core','run'];
-  for(var i = 0; i < keys.length; i++){
-    var t = TEMPLATES[keys[i]];
-    var on = keys[i] === cur;
-    var extra = t.items.length ? (t.items.length + ' 个动作' + (t.cardio === 'task' ? ' + 有氧' : ''))
-                              : (t.key === 'run' ? '做 30 分钟以上有氧' : '什么都不用做');
-    h += '<button class="opt' + (on ? ' on' : '') + '" onclick="setWeek(' + w + ',\'' + keys[i] + '\')">' +
-           '<span>' + (on ? '✓ ' : '') + t.name + '<span class="o-sub">　' + extra + '</span></span>' +
-           '<span class="o-sub">' + t.sub + '</span>' +
-         '</button>';
-  }
-  h += '<button class="btn-ghost" onclick="resetWeek()">七天都恢复成默认安排</button>';
-  document.getElementById('sheetBody').innerHTML = h;
+/* ================= 从底部弹出的面板（可以一层一层往里进） ================= */
+var sheetStack = [];
+function pushSheet(view){ sheetStack.push(view); drawSheet(); }
+function popSheet(){
+  sheetStack.pop();
+  if(sheetStack.length) drawSheet(); else closeSheet();
+}
+function drawSheet(){
+  if(!sheetStack.length) return;
+  document.getElementById('sheetBody').innerHTML = sheetStack[sheetStack.length - 1]();
   document.getElementById('mask').className = 'mask on';
+  var cb = document.getElementById('sheetCloseBtn');
+  if(cb) cb.textContent = sheetStack.length > 1 ? '关闭全部' : '取消';
+  var s = document.getElementById('sheet');
+  if(s) s.scrollTop = 0;
 }
 function closeSheet(){
+  sheetStack = [];
   document.getElementById('mask').className = 'mask';
 }
+function optBtn(label, on, action){
+  return '<button class="pick' + (on ? ' on' : '') + '" onclick="' + action + '">' + (on ? '✓ ' : '') + label + '</button>';
+}
+
+/* ---------- 每天练哪一套 ---------- */
+function openDay(w){
+  pushSheet(function(){
+    var cur = state.week[w];
+    var h = '<h3>' + WEEK_CN[w] + '安排什么</h3><div class="sub">选一个，立刻生效</div>';
+    var keys = ['rest'].concat(PLAN_KEYS);
+    for(var i = 0; i < keys.length; i++){
+      var t = state.plan[keys[i]];
+      var on = keys[i] === cur;
+      var extra = t.items.length ? (t.items.length + ' 个动作' + (t.cardio === 'task' ? ' + 有氧' : ''))
+                                : (keys[i] === 'run' ? '做 30 分钟以上有氧' : '什么都不用做');
+      h += '<button class="opt' + (on ? ' on' : '') + '" onclick="setWeek(' + w + ',' + q(keys[i]) + ')">' +
+             '<span>' + (on ? '✓ ' : '') + t.name + '<span class="o-sub">　' + extra + '</span></span>' +
+             '<span class="o-sub">' + t.sub + '</span>' +
+           '</button>';
+    }
+    h += '<div style="height:6px"></div>';
+    if(cur !== 'rest'){
+      h += '<button class="opt" onclick="openPlanEdit(' + q(cur) + ')">✏️ 改这套里的动作</button>';
+    }
+    h += '<div style="height:6px"></div>';
+    h += '<button class="btn-ghost" onclick="resetWeek()">七天都恢复成默认安排</button>';
+    h += '<div style="height:9px"></div>';
+    h += '<button class="btn-ghost" onclick="closeSheet()">取消</button>';
+    return h;
+  });
+}
+
+/* ---------- 编辑某一套里的动作 ---------- */
+function openPlanEdit(id){
+  if(!state.plan[id]) return;
+  pushSheet(viewPlanEdit(id));
+}
+function viewPlanEdit(id){
+  return function(){
+    var p = state.plan[id];
+    var h = '<h3>' + esc(p.name) + '</h3><div class="sub">点动作改名改组数；↑↓ 调顺序，✕ 移出</div>';
+    if(p.items.length){
+      h += '<div>';
+      for(var i = 0; i < p.items.length; i++){
+        h += '<div class="edit-item">' +
+               '<button class="ei-main" onclick="pushSheet(viewItemEdit(' + q(id) + ',' + i + '))">' +
+                 '<span class="ei-name">' + esc(p.items[i].n) + '</span>' +
+                 '<span class="o-sub">' + fmtItem(p.items[i]) + '</span>' +
+               '</button>' +
+               '<button class="ei-btn" onclick="moveItem(' + q(id) + ',' + i + ',-1)">↑</button>' +
+               '<button class="ei-btn" onclick="moveItem(' + q(id) + ',' + i + ',1)">↓</button>' +
+               '<button class="ei-btn del" onclick="delItem(' + q(id) + ',' + i + ')">✕</button>' +
+             '</div>';
+      }
+      h += '</div>';
+    }else{
+      h += '<div class="tips">这套现在没有力量动作（只做有氧）。点下面的按钮加动作。</div>';
+    }
+    h += '<div style="height:12px"></div>';
+    h += '<button class="opt" onclick="pushSheet(viewLib(' + q(id) + '))">＋ 从动作库添加</button>';
+    h += '<button class="opt" onclick="pushSheet(viewNewItem(' + q(id) + '))">＋ 自己写一个动作</button>';
+    h += '<div class="card-sub" style="margin:16px 0 8px">这套安排要不要跟有氧</div>';
+    h += '<div class="picks">' +
+           optBtn('练完做有氧', p.cardio === 'task', 'setPlanCardio(' + q(id) + ',\'task\')') +
+           optBtn('以有氧为主', p.cardio === 'main', 'setPlanCardio(' + q(id) + ',\'main\')') +
+           optBtn('有氧选做', p.cardio === 'optional', 'setPlanCardio(' + q(id) + ',\'optional\')') +
+         '</div>';
+    h += '<div style="height:14px"></div>';
+    h += '<button class="btn-ghost" onclick="resetPlan(' + q(id) + ')">恢复这套的默认动作</button>';
+    h += '<div style="height:9px"></div>';
+    h += '<button class="btn-ghost" onclick="popSheet()">返回</button>';
+    return h;
+  };
+}
+
+/* ---------- 改单个动作：组数、次数、单位 ---------- */
+function viewItemEdit(id, idx){
+  return function(){
+    var it = state.plan[id] && state.plan[id].items[idx];
+    if(!it) return '<h3>这个动作已经不在列表里了</h3><button class="btn-ghost" onclick="popSheet()">返回</button>';
+    var h = '<h3>' + esc(it.n) + '</h3><div class="sub">点一下就能改，改完自动保存</div>';
+    h += '<div class="card-sub" style="margin:10px 0 7px">几组</div><div class="picks">';
+    var sets = [1,2,3,4,5];
+    for(var i = 0; i < sets.length; i++){
+      h += optBtn(sets[i] + ' 组', it.s === sets[i], 'setItem(' + q(id) + ',' + idx + ',\'s\',' + sets[i] + ')');
+    }
+    h += '</div>';
+    var step = it.u === '次' ? 1 : 5;
+    h += '<div class="card-sub" style="margin:16px 0 4px">每组多少个</div>';
+    h += '<div class="stepper">' +
+           '<button class="st-btn" onclick="stepReps(' + q(id) + ',' + idx + ',-1)">－</button>' +
+           '<span class="st-val">' + it.r + ' ' + (it.u || '次') + '</span>' +
+           '<button class="st-btn" onclick="stepReps(' + q(id) + ',' + idx + ',1)">＋</button>' +
+         '</div>';
+    h += '<div class="card-sub" style="margin:16px 0 7px">单位</div><div class="picks">';
+    var units = ['次','秒','米','分钟'];
+    for(var u = 0; u < units.length; u++){
+      h += optBtn(units[u], it.u === units[u], 'setItem(' + q(id) + ',' + idx + ',\'u\',' + q(units[u]) + ')');
+    }
+    h += '</div>';
+    h += '<div style="height:18px"></div>';
+    h += '<button class="btn-ghost btn-danger" onclick="delItem(' + q(id) + ',' + idx + ')">从这套安排里去掉</button>';
+    h += '<div style="height:9px"></div>';
+    h += '<button class="btn-ghost" onclick="popSheet()">返回</button>';
+    return h;
+  };
+}
+
+/* ---------- 从动作库挑动作 ---------- */
+function viewLib(id){
+  return function(){
+    var h = '<h3>从动作库添加</h3><div class="sub">点一下就加进「' + esc(state.plan[id].name) + '」</div>';
+    for(var g = 0; g < ACTION_LIB.length; g++){
+      h += '<div class="lib-group">' + ACTION_LIB[g].group + '</div><div class="picks">';
+      for(var i = 0; i < ACTION_LIB[g].items.length; i++){
+        h += '<button class="pick" onclick="addLibItem(' + q(id) + ',' + g + ',' + i + ')">' +
+             esc(ACTION_LIB[g].items[i][0]) + '</button>';
+      }
+      h += '</div>';
+    }
+    h += '<div style="height:16px"></div>';
+    h += '<button class="btn-ghost" onclick="popSheet()">返回</button>';
+    return h;
+  };
+}
+
+/* ---------- 自己写一个动作 ---------- */
+var newItem = { n:'', s:3, r:12, u:'次' };
+function viewNewItem(id){
+  return function(){
+    var h = '<h3>自己写一个动作</h3><div class="sub">名字一定要填，其他不改也行</div>';
+    h += '<label class="field">动作名字</label>';
+    h += '<input type="text" id="niName" placeholder="例如：龙门架夹胸" value="' + esc(newItem.n) + '">';
+    h += '<div class="card-sub" style="margin:16px 0 7px">几组</div><div class="picks">';
+    var sets = [1,2,3,4,5];
+    for(var i = 0; i < sets.length; i++){
+      h += optBtn(sets[i] + ' 组', newItem.s === sets[i], 'setNew(\'s\',' + sets[i] + ')');
+    }
+    h += '</div>';
+    h += '<div class="card-sub" style="margin:16px 0 4px">每组多少个</div>';
+    h += '<div class="stepper">' +
+           '<button class="st-btn" onclick="stepNew(-1)">－</button>' +
+           '<span class="st-val">' + newItem.r + ' ' + newItem.u + '</span>' +
+           '<button class="st-btn" onclick="stepNew(1)">＋</button>' +
+         '</div>';
+    h += '<div class="card-sub" style="margin:16px 0 7px">单位</div><div class="picks">';
+    var units = ['次','秒','米','分钟'];
+    for(var u = 0; u < units.length; u++){
+      h += optBtn(units[u], newItem.u === units[u], 'setNew(\'u\',' + q(units[u]) + ')');
+    }
+    h += '</div>';
+    h += '<div style="height:18px"></div>';
+    h += '<button class="btn-main" onclick="addNewItem(' + q(id) + ')">加进这套安排</button>';
+    h += '<div style="height:9px"></div>';
+    h += '<button class="btn-ghost" onclick="popSheet()">返回</button>';
+    return h;
+  };
+}
+
+/* ---------- 上面这些按钮对应的动作 ---------- */
+function setPlanCardio(id, val){
+  if(!state.plan[id]) return;
+  state.plan[id].cardio = val;
+  save(); drawSheet(); render();
+}
+function moveItem(id, idx, dir){
+  var items = state.plan[id].items;
+  var to = idx + dir;
+  if(to < 0 || to >= items.length) return;
+  var tmp = items[idx]; items[idx] = items[to]; items[to] = tmp;
+  save(); drawSheet(); render();
+}
+function delItem(id, idx){
+  var items = state.plan[id].items;
+  if(!items[idx]) return;
+  var name = items[idx].n;
+  items.splice(idx, 1);
+  save();
+  if(sheetStack.length > 1) popSheet(); else drawSheet();
+  render();
+  toast('已移出：' + name);
+}
+function setItem(id, idx, field, val){
+  var it = state.plan[id] && state.plan[id].items[idx];
+  if(!it) return;
+  it[field] = val;
+  save(); drawSheet(); render();
+}
+function stepReps(id, idx, dir){
+  var it = state.plan[id] && state.plan[id].items[idx];
+  if(!it) return;
+  var step = (it.u === '次' ? 1 : 5);
+  it.r = Math.max(1, it.r + dir * step);
+  save(); drawSheet(); render();
+}
+function addLibItem(id, g, i){
+  var src = ACTION_LIB[g].items[i];
+  if(!src) return;
+  var items = state.plan[id].items;
+  for(var k = 0; k < items.length; k++){
+    if(items[k].n === src[0]){ toast('这套里已经有「' + src[0] + '」了'); return; }
+  }
+  items.push({ n:src[0], s:src[1], r:src[2], u:src[3] });
+  save(); drawSheet(); render();
+  toast('已加入：' + src[0]);
+}
+function setNew(field, val){
+  var el = document.getElementById('niName');
+  if(el) newItem.n = el.value;
+  newItem[field] = val;
+  drawSheet();
+}
+function stepNew(dir){
+  var el = document.getElementById('niName');
+  if(el) newItem.n = el.value;
+  var step = (newItem.u === '次' ? 1 : 5);
+  newItem.r = Math.max(1, newItem.r + dir * step);
+  drawSheet();
+}
+function addNewItem(id){
+  var el = document.getElementById('niName');
+  var name = el ? el.value.replace(/^\s+|\s+$/g, '') : newItem.n;
+  if(!name){ toast('先给动作起个名字'); return; }
+  state.plan[id].items.push({ n:name, s:newItem.s, r:newItem.r, u:newItem.u });
+  newItem = { n:'', s:3, r:12, u:'次' };
+  save(); popSheet(); render();
+  toast('已加入：' + name);
+}
+function resetPlan(id){
+  if(!state.plan[id]) return;
+  if(!confirm('把「' + state.plan[id].name + '」恢复成默认动作？你自己加的动作会没掉。')) return;
+  state.plan[id] = clonePlan(DEFAULT_PLAN)[id];
+  save(); drawSheet(); render();
+  toast('已恢复默认');
+}
 function setWeek(w, id){
-  if(!TEMPLATES[id]) return;
+  if(!state.plan[id]) return;
   state.week[w] = id;
   save(); closeSheet(); render();
-  toast(WEEK_CN[w] + '已改成：' + TEMPLATES[id].name);
+  toast(WEEK_CN[w] + '已改成：' + state.plan[id].name);
 }
 function resetWeek(){
   state.week = cloneWeek(WEEK_DEFAULT);
@@ -1026,6 +1392,17 @@ function exportData(){
 function backupJson(){
   return JSON.stringify({ app:'百日筑基', version:1, exportedAt:todayStr(), state:state }, null, 2);
 }
+/* 把备份里的数据整理成现在这个版本能用的格式 */
+function stateFrom(s){
+  var pl = fixPlan(s.plan);
+  return {
+    start: s.start || todayStr(),
+    cupMl: s.cupMl || 375,
+    week: fixWeek(s.week),
+    plan: pl,
+    days: fixDays(s.days || {}, pl)
+  };
+}
 function showBackupText(){
   var box = document.getElementById('backupBox');
   document.getElementById('backupText').value = backupJson();
@@ -1054,7 +1431,7 @@ function importData(input){
       var s = d.state || d;
       if(!s || !s.days) throw new Error('格式不对');
       if(!confirm('确定用备份覆盖当前记录吗？现在的记录会被替换。')) return;
-      state = { start:s.start || todayStr(), cupMl:s.cupMl || 375, week:fixWeek(s.week), days:s.days || {} };
+      state = stateFrom(s);
       save(); render(); toast('恢复成功');
     }catch(e){ toast('文件读不出来，请确认是导出的备份'); }
     input.value = '';
@@ -1069,7 +1446,7 @@ function restoreFromText(){
     var s = d.state || d;
     if(!s || !s.days) throw new Error('格式不对');
     if(!confirm('确定用这段备份覆盖当前记录吗？现在的记录会被替换。')) return;
-    state = { start:s.start || todayStr(), cupMl:s.cupMl || 375, week:fixWeek(s.week), days:s.days || {} };
+    state = stateFrom(s);
     viewDate = todayStr(); save(); render(); toast('恢复成功');
     document.getElementById('restoreText').value = '';
   }catch(e){ toast('内容读不出来，请确认复制完整'); }
